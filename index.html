@@ -1,0 +1,781 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1C56D0">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="RM Order">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="format-detection" content="telephone=no">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}</style>
+<title>Raw Material Ordering</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: sticky ledger-style top bar with tabs; one working column of panels; POs rendered as white paper sheets. */
+:root{
+  --bg:#EEF1F5; --surface:#FFFFFF; --surface-2:#F6F8FB; --ink:#16202C; --muted:#5A6777; --line:#D6DDE6;
+  --accent:#1C56D0; --accent-ink:#FFFFFF; --accent-soft:#E3EBFB;
+  --ok:#1B7348; --ok-soft:#DFF2E7; --warn:#9A5600; --warn-soft:#FAEDD6; --danger:#B42318; --danger-soft:#FCE6E3;
+  --paper:#FFFFFF; --paper-ink:#111418; --paper-line:#222;
+  --f-head:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --r:8px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E141B; --surface:#161F29; --surface-2:#1B2530; --ink:#E5EAF0; --muted:#94A2B3; --line:#2A3645;
+  --accent:#709CFF; --accent-ink:#0A1220; --accent-soft:#1C2B47;
+  --ok:#5CC690; --ok-soft:#14302A; --warn:#E8A84D; --warn-soft:#33270F; --danger:#FF7B6C; --danger-soft:#3A1A17; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E141B; --surface:#161F29; --surface-2:#1B2530; --ink:#E5EAF0; --muted:#94A2B3; --line:#2A3645;
+  --accent:#709CFF; --accent-ink:#0A1220; --accent-soft:#1C2B47;
+  --ok:#5CC690; --ok-soft:#14302A; --warn:#E8A84D; --warn-soft:#33270F; --danger:#FF7B6C; --danger-soft:#3A1A17; color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+h1,h2,h3{font-family:var(--f-head);text-wrap:balance;margin:0;letter-spacing:.005em}
+h2{font-size:20px;font-weight:600}
+h3{font-size:16px;font-weight:600}
+p{margin:0}
+.muted{color:var(--muted)}
+.num,td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
+.mono{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.top-in{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding-block:10px 0}
+.brand{display:flex;flex-direction:column;padding-bottom:10px}
+.brand b{font-family:var(--f-head);font-size:18px;font-weight:700;letter-spacing:.02em}
+.brand span{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
+nav.tabs{display:flex;gap:2px;overflow-x:auto;flex:1;min-width:0;align-self:flex-end}
+nav.tabs a{padding:10px 14px;color:var(--muted);text-decoration:none;font-weight:500;border-bottom:2px solid transparent;white-space:nowrap}
+nav.tabs a:hover{color:var(--ink)}
+nav.tabs a[aria-current="page"]{color:var(--accent);border-bottom-color:var(--accent)}
+
+main{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 60px;display:flex;flex-direction:column;gap:18px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.panel-head{display:flex;flex-direction:column;gap:4px}
+.panel-head p{color:var(--muted);max-width:70ch}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.spread{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:500;min-width:0}
+label.f.grow{flex:1 1 220px}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 9px;min-width:0;max-width:100%}
+textarea{width:100%;resize:vertical}
+input[type=number]{font-family:var(--f-num);font-size:13px}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+td input,td select{width:100%}
+td input.num{min-width:84px}
+.check{display:flex;align-items:center;gap:8px;font-weight:500;color:var(--ink);font-size:13px;padding-bottom:7px}
+.check input{width:16px;height:16px;accent-color:var(--accent)}
+
+.btn{font:inherit;font-weight:600;font-size:13px;border-radius:6px;padding:8px 14px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);cursor:pointer;white-space:nowrap}
+.btn:hover{filter:brightness(1.07)}
+.btn.ghost{background:transparent;color:var(--accent);border-color:var(--line)}
+.btn.ghost:hover{border-color:var(--accent);filter:none}
+.btn.danger{background:transparent;color:var(--danger);border-color:var(--line)}
+.btn.danger.armed{background:var(--danger);color:#fff;border-color:var(--danger)}
+.btn.sm{padding:5px 10px;font-size:12px}
+.icon-btn{font:inherit;background:transparent;border:1px solid transparent;color:var(--muted);border-radius:6px;padding:4px 8px;cursor:pointer}
+.icon-btn:hover{color:var(--danger);border-color:var(--line)}
+.icon-btn.armed{color:#fff;background:var(--danger)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px}
+table.grid{border-collapse:collapse;width:100%;font-size:13px}
+table.grid th{background:var(--surface-2);text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.grid td{padding:6px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.grid tbody tr:last-child td{border-bottom:0}
+table.grid td.mono{font-family:var(--f-num)}
+tr.group td{background:var(--surface-2);font-weight:600;font-family:var(--f-head);font-size:14px;padding-block:8px}
+tr.group td .muted{font-family:var(--f-body);font-weight:400;font-size:12px}
+tr.tot td{font-weight:600;background:var(--surface-2)}
+.matname{font-weight:500}
+.spec{font-size:12px;color:var(--muted)}
+
+.chip{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;white-space:nowrap}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.info{background:var(--accent-soft);color:var(--accent)}
+.chip.bad{background:var(--danger-soft);color:var(--danger)}
+
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.stat{background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;gap:2px}
+.stat span{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.stat b{font-family:var(--f-num);font-size:22px;font-weight:500}
+.stat small{color:var(--muted);font-size:12px}
+@media (max-width:760px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  input,select,textarea{font-size:16px}
+  .top-in{gap:8px}
+  .brand{padding-bottom:4px}
+  .who{order:2;margin-left:auto;padding-bottom:4px}
+  .who .lab{display:none}
+  .top{position:static}
+  .brand b{font-size:16px}
+  nav.tabs{order:3;flex-basis:100%}
+  .panel{padding:14px}
+  .stat b{font-size:18px}
+  .po-card > header .actions{width:100%}
+}
+
+.banner{background:var(--warn-soft);color:var(--ink);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.banner p{max-width:85ch}
+.note{background:var(--ok-soft);border-radius:var(--r);padding:10px 14px}
+
+.po-card{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);overflow:hidden}
+.po-card > header{display:flex;gap:12px;flex-wrap:wrap;justify-content:space-between;align-items:center;padding:12px 14px}
+.po-card .po-no{font-family:var(--f-num);font-size:12px;color:var(--accent);font-weight:500;letter-spacing:.04em}
+.po-card.nov{border-color:var(--warn)}
+.po-doc-wrap{background:var(--surface-2);border-top:1px solid var(--line);padding:16px;overflow-x:auto}
+
+/* The PO itself: always paper-white, mirrors the Excel PI layout */
+.po-doc{background:var(--paper);color:var(--paper-ink);width:820px;max-width:none;margin:0 auto;font-family:Calibri,Carlito,"IBM Plex Sans",Arial,sans-serif;font-size:12.5px;border:1px solid var(--paper-line)}
+.po-doc .banner-t{font-size:26px;font-weight:700;text-align:center;padding:16px;border-bottom:1px solid var(--paper-line);letter-spacing:.04em}
+.po-doc .grid2{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--paper-line)}
+.po-doc .grid2 > div{padding:8px 10px}
+.po-doc .grid2 > div + div{border-left:1px solid var(--paper-line)}
+.po-doc .lbl{font-weight:700}
+.po-doc .potitle{font-size:20px;font-weight:700;text-align:center;align-self:center}
+.po-doc .kv{display:grid;grid-template-columns:110px 1fr;gap:2px 8px;margin-top:6px}
+.po-doc table{border-collapse:collapse;width:100%}
+.po-doc th,.po-doc td{border:1px solid var(--paper-line);padding:4px 6px;text-align:left}
+.po-doc th{font-weight:700;background:#F1F1F1}
+.po-doc td.n,.po-doc th.n{text-align:right;font-variant-numeric:tabular-nums}
+.po-doc .foot{display:grid;grid-template-columns:1.4fr 1fr}
+.po-doc .foot > div{padding:8px 10px}
+.po-doc .foot table td{border:1px solid var(--paper-line)}
+.po-doc .sign{display:flex;justify-content:flex-end;padding:30px 10px 10px;font-weight:700}
+
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-weight:500;z-index:20;max-width:calc(100% - 32px)}
+
+.bom-layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:860px){.bom-layout{grid-template-columns:minmax(0,1fr)}}
+.plist{display:flex;flex-direction:column;gap:4px}
+.plist button{font:inherit;text-align:left;background:transparent;border:1px solid transparent;border-radius:6px;padding:8px 10px;cursor:pointer;color:var(--ink);display:flex;flex-direction:column;gap:1px}
+.plist button:hover{background:var(--surface-2)}
+.plist button[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent)}
+.plist small{color:var(--muted);font-size:12px}
+.newmat{border:1px dashed var(--accent);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:12px;background:var(--surface-2)}
+.vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+@media (max-width:420px){.vgrid{grid-template-columns:minmax(0,1fr)}}
+.vcard{border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--surface)}
+.empty{color:var(--muted);text-align:center;padding:28px}
+.hist li{padding:6px 0;border-bottom:1px solid var(--line)}
+.hist{list-style:none;margin:0;padding:0}
+
+@media (prefers-reduced-motion:no-preference){.btn,.icon-btn,nav.tabs a{transition:background .12s,color .12s,border-color .12s}}
+
+/* login */
+.who{display:flex;align-items:center;gap:10px;padding-bottom:10px;font-size:13px;color:var(--muted)}
+.who b{color:var(--ink);font-weight:600}
+.gate{min-height:70vh;display:grid;place-items:center}
+.gate form{width:min(380px,100%);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:24px;display:flex;flex-direction:column;gap:14px}
+.gate h2{font-size:22px}
+.gate input{width:100%;font-size:16px;padding:10px 12px}
+.gate .pin{font-family:var(--f-num);letter-spacing:.4em}
+.err{color:var(--danger);font-size:13px}
+.ulist{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:6px}
+.ulist > div{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--line)}
+.ulist > div:last-child{border-bottom:0}
+@media print{
+  body{background:#fff}
+  body *{visibility:hidden}
+  .print-target,.print-target *{visibility:visible}
+  .print-target{position:absolute;left:0;top:0;border:0;width:100%}
+  .top,#toast{display:none}
+}
+</style>
+</head>
+<body>
+
+<header class="top"><div class="top-in">
+  <div class="brand"><b>MUMUKSH IMPEX LLP</b><span>Raw material ordering</span></div>
+  <nav class="tabs" id="tabs"></nav>
+  <div class="who" id="who"></div>
+</div></header>
+<main id="view"></main>
+<div id="toast" hidden></div>
+
+<script>
+(function(){
+"use strict";
+const KEY='mumuksh-rm-order-v2';
+const UNITS_LIST=['KG','PCS','ROLL','TON','MTR','BOX'];
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,10);
+const num=v=>{const n=parseFloat(v);return isFinite(n)?n:0};
+const fmt=(n,d=2)=>Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:d});
+const money=n=>'₹'+Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+const today=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
+const dmy=s=>{if(!s)return'';const[y,m,d]=s.split('-');return`${d}-${m}-${y}`};
+function sha256(ascii){
+  const rr=(v,a)=>(v>>>a)|(v<<(32-a));const maxWord=Math.pow(2,32);let result='';const words=[];const bitLen=ascii.length*8;
+  let hash=[];const k=[];let pc=0;const comp={};
+  for(let c=2;pc<64;c++){if(!comp[c]){for(let i=0;i<313;i+=c)comp[i]=c;hash[pc]=(Math.pow(c,.5)*maxWord)|0;k[pc++]=(Math.pow(c,1/3)*maxWord)|0}}
+  ascii+='\x80';while(ascii.length%64-56)ascii+='\x00';
+  for(let i=0;i<ascii.length;i++){const j=ascii.charCodeAt(i);if(j>>8)return'';words[i>>2]|=j<<((3-i)%4)*8}
+  words[words.length]=((bitLen/maxWord)|0);words[words.length]=bitLen;
+  for(let j=0;j<words.length;){const w=words.slice(j,j+=16);const old=hash;hash=hash.slice(0,8);
+    for(let i=0;i<64;i++){const w15=w[i-15],w2=w[i-2];const a=hash[0],e=hash[4];
+      const t1=hash[7]+(rr(e,6)^rr(e,11)^rr(e,25))+((e&hash[5])^((~e)&hash[6]))+k[i]+(w[i]=(i<16)?w[i]:(w[i-16]+(rr(w15,7)^rr(w15,18)^(w15>>>3))+w[i-7]+(rr(w2,17)^rr(w2,19)^(w2>>>10)))|0);
+      const t2=(rr(a,2)^rr(a,13)^rr(a,22))+((a&hash[1])^(a&hash[2])^(hash[1]&hash[2]));
+      hash=[(t1+t2)|0].concat(hash);hash[4]=(hash[4]+t1)|0}
+    for(let i=0;i<8;i++)hash[i]=(hash[i]+old[i])|0}
+  for(let i=0;i<8;i++)for(let j=3;j+1;j--){const b=(hash[i]>>(j*8))&255;result+=(b<16?'0':'')+b.toString(16)}
+  return result;
+}
+const pinHash=(salt,pin)=>{let h=salt+':'+pin;for(let i=0;i<2000;i++)h=sha256(h+salt);return h};
+const USER_RE=/^[a-z0-9._-]{2,20}$/;
+const PIN_RE=/^\d{4,6}$/;
+const SESSION='mumuksh-rm-session';
+const canPrint=(()=>{try{return window.self===window.top}catch(e){return false}})();
+
+/* ---------- seed data (vendors + rates from past POs; BOM qty is example) ---------- */
+function seed(){
+  const V=(name,address,gstin,state,delivery,payment)=>({id:uid(),name,address,gstin,state,delivery,payment});
+  const vendors=[
+    V('HENKEL ADHESIVES TECHNOLOGIES INDIA PRIVATE LIMITED','MUSTIL NO13,26/1,26,16,15/2,\nVILLAGE KHALIPUR, TALUK, JHAJJAR\nDist. JHAJJAR - 124103','06AAACL1954B1Z0','Haryana, Code : 06','FOR','90'),
+    V('H.B. FULLER INDIA ADHESIVE PRIVATE LTD','PLOT 1E, SR 1129(P), 1140, 1295, 112(P), AT POST\nSHILVEWAL TALUKA KHANDALA, SATARA, MAHARASHTRA, INDIA\nDist. SATARA - 412801','27AACCH1671D1ZW','Maharashtra, Code : 27','FOR','60'),
+    V('BASF India LIMITED','10th Floor, Unit No 10A 10B and 10C Part, Godrej One Building, Eastern Express\nHighway, Taj The Trees, Pirojshanagar, Mumbai, Mumbai Suburban, Maharashtra\nDist. Mumbai - 400079','27AAACB4599E1ZL','Maharashtra, Code : 27','',''),
+    V('SPUN BOND INDIA PRIVATE LIMITED','Killa No. 67//20/3/2/2/2, NARELA TO PIAO MANIARI ROAD,\nKUNDLI, SONIPAT, Sonipat, Haryana, 131028\nDIST: Sonipat - 131028','06ABGCS6972D1Z5','Haryana, Code : 06','EX','60'),
+    V('VISION NON-WOVENS PVT LTD','R. S. 639 Plot no. 2 Vision Industrial park\nVillage Change\nDist. Jamnagar - 361012','24AAHCV5375P1ZL','Gujarat, Code : 24','EX',''),
+    V('SPUNWEB NONWOVEN LIMITED','Survey No.109/2,Near Wankaner Boundary, N.H.-8-A, Post-Jalida, Village\nRangpar, Tal-Wankaner, Dist-Morbi, Morbi, Gujarat, India\nDIST: Morbi - 363621','24AAWCS0641L1ZY','Gujarat, Code : 24','EX','45'),
+    V('KTEX NONWOVENS PVT LTD','Survey no. 241, Rajkot Jamnagar Highway\nOPP. Khamta Bus Stop, Vill. SANOSRA, Ta. DHROL\nDist. Rajkot - 360110','24AAGCK2290K1ZF','Gujarat, Code : 24','EX',''),
+    V('EXIMIUS INNOVATIVE PVT. LTD.','Plot No. 1 & 2, Survey No.167, N.H.27, B/H.Rangpar Bus Stand, VI:\nRangpar, TA: Wankaner, Gujarat\nDist. Rangpar- 363621','24AAFCE8272J1ZE','Gujarat, Code : 24','EX',''),
+    V('CLINIVA HYGIENE INDIA INDUSTRIES','SARVEY NO.181 P1, AT-MITANA\nTA-TANKARA, MORBI, GUJARAT, INDIA\nDist. MORBI - 363650','24AANFC2192A1ZU','Gujarat, Code : 24','EX',''),
+    V('AGARWAL TECHNOPLAST PVT LTD','S.NO. 254/255, KHARABWADI VILLEGE, CHAKAN\nTALEGAON ROAD, CHAKAN\nDist. PUNE - 410501','27AARCA1024C1Z3','Maharashtra, Code : 27','',''),
+    V('PRINT N PACK','1008, ANMOL TEXTILE MARKET,\nRING ROAD, SURAT\nDist. SURAT - 395002','24ABKPG0919P1ZG','Gujarat, Code : 24','','60'),
+    V('KRISH FLEXIPACKS PVT. LTD.','45, Somnath-Kachhigam Rd,\nSomnath, Ringanwada, Daman,\nDaman and Diu 396210','26AACCN4672Q1ZW','Daman and Diu, Code : 26','',''),
+    V('NITEO AUTOMATION INDIA PVT LTD','PLOT NO. 5/2/3 F-II BLOCK\nNR. WONDER CAR MIDC PUNE MAHARASTRA\nDist. PUNE - 411018','27AAHCN6994N1ZG','Maharashtra, Code : 27','',''),
+    V('ELIXRR INDUSTRIES PRIVATE LIMITED','PLOT NO. 101 GIDC ESTATE, VILLAGE PALEJ\nDIST: BHARUCH - 392220','24AAGCE7033G1ZV','Gujarat, Code : 24','',''),
+    V('NORDSON INDIA PVT. LTD.','13A BOMMASANDRA INDUSTRIAL AREA\nBANGALORE - 560099','29AAACN5770F1ZC','Karnataka, Code : 29','',''),
+    V('ELOF HANSSON TRADE AB','SE-413 80 GOTEBORG\nSWEDEN\nTEL. +46 31856000','VAT: SE556088563301','Sweden (import)','',''),
+    V('SPANDAN JI','Indore','','Madhya Pradesh, Code : 23','FOR','')
+  ];
+  const vid=n=>(vendors.find(v=>v.name.startsWith(n))||{}).id||'';
+  const M=(name,gsm,width,type,remark,unit,vendor,rate,opening)=>({id:uid(),name,gsm,width,type,remark,unit,vendorId:vid(vendor),rate,opening});
+  const mats=[
+    M('Lower Tissue','9','165','HI','SSS','KG','SPUNWEB',137,0),
+    M('Upper Tissue','9','90','HI','SSS','KG','SPUNWEB',137,0),
+    M('Top Sheet','13','140','HI','SSS','KG','SPUNWEB',135,0),
+    M('Back Sheet','13','210','HO','SSS','KG','SPUNWEB',128.5,0),
+    M('Cuff Sheet','13','240','HO','SMMSS','KG','VISION',123.5,0),
+    M('Inner panel','13','220','HO','SSS','KG','SPUNWEB',128.5,0),
+    M('Outer panel','15','320','HO','SSS','KG','SPUNWEB',128.5,0),
+    M('PE Film','13','155','','','KG','',0,0),
+    M('SAP HYSORB R8330','','','','','KG','BASF',115.4,0),
+    M('Pulp – Rayfloc Untreated Fluff','','','','','KG','ELOF',0,0),
+    M('Cons. Glue','','','','','KG','HENKEL',0,0),
+    M('Elastic Glue','','','','','KG','',0,0),
+    M('Elastic','','','','','KG','',0,0)
+  ];
+  const L=(i,length,weight)=>({materialId:mats[i].id,length,weight,wastage:0});
+  const p={id:uid(),name:'Baby Pant (from BOM sheet)',unit:'pcs',
+    lines:[L(0,0.32,''),L(1,0.32,''),L(2,0.36,''),L(3,0.36,''),L(4,0.36,''),L(5,0.32,''),L(6,0.32,''),L(7,0.36,''),
+      L(8,'',3.5),L(9,'',7),L(10,'',1),L(11,'',0.4),L(12,'',0.341)]};
+  const units=[
+    {id:'ranala',name:'MUMUKSH IMPEX LLP',short:'Ranala',address:'466/1, 466/2, Ranala Shivar, Ranale,\nNandurbar-425411',gstin:'27ABRFM8257F1ZO',pan:'ABRFM8257F',state:'Maharashtra, Code : 27'},
+    {id:'surat',name:'MUMUKSH IMPEX LLP',short:'Surat',address:'BLOCK NO 65 PAIKI PLOT NO 65-A-3/2 TO 65-A-3/7,\nVILLAGE MOTA BORSARA SUB DIST MANGROL, KIM, SURAT - 394410',gstin:'24ABRFM8257F1ZU',pan:'ABRFM8257F',state:'Gujarat, Code : 24'}
+  ];
+  return {vendors,materials:mats,products:[p],units,
+    settings:{nextPO:123,stockDate:today()},
+    plan:{date:today(),unitId:'ranala',deduct:true,rows:[{productId:p.id,qty:300000}],overrides:{}},
+    history:[],users:[],example:true};
+}
+function migrate(s){
+  if(!s||!Array.isArray(s.vendors)||!Array.isArray(s.materials)||!Array.isArray(s.products))throw new Error('This backup is missing vendors, materials or products.');
+  s.units=Array.isArray(s.units)&&s.units.length?s.units:seed().units;
+  s.settings=Object.assign({nextPO:1,stockDate:today()},s.settings||{});
+  s.plan=Object.assign({date:today(),unitId:s.units[0].id,deduct:true,rows:[],overrides:{}},s.plan||{});
+  s.plan.overrides=s.plan.overrides||{};
+  s.history=s.history||[];
+  s.users=Array.isArray(s.users)?s.users:[];
+  return s;
+}
+function load(){try{const t=localStorage.getItem(KEY);if(t)return migrate(JSON.parse(t))}catch(e){}return seed()}
+let S=load();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+let ME=null;try{ME=sessionStorage.getItem(SESSION)}catch(e){}
+const me=()=>S.users.find(u=>u.id===ME)||null;
+const isAdmin=()=>me()?.role==='admin';
+const auth={fails:0,until:0,err:''};
+function setMe(id){ME=id;try{id?sessionStorage.setItem(SESSION,id):sessionStorage.removeItem(SESSION)}catch(e){}}
+function makeUser(username,pin,role){const salt=uid()+uid();return {id:uid(),username,salt,hash:pinHash(salt,pin),role}}
+const ui={sel:null,paste:false,newMat:false,newMatTab:false,open:new Set(),armed:null,saved:null};
+
+const prod=id=>S.products.find(p=>p.id===id);
+const mat=id=>S.materials.find(m=>m.id===id);
+const ven=id=>S.vendors.find(v=>v.id===id);
+const unitById=id=>S.units.find(u=>u.id===id)||S.units[0];
+function specOf(m){const a=[];if(m.gsm)a.push(m.gsm+' GSM');if(m.width)a.push(m.width+' mm');if(m.type)a.push(m.type);if(m.remark)a.push(m.remark);return a.join(' · ')}
+function matLabel(m){const s=specOf(m);return m.name+(s?' — '+s:'')}
+const isSheet=m=>!!m&&num(m.gsm)>0&&num(m.width)>0;
+function perPc(l,m){if(!m)return 0;return isSheet(m)&&num(l.length)>0?num(m.gsm)*num(m.width)/1000*num(l.length):num(l.weight)}
+const toUnit=m=>{const u=String(m.unit||'').toUpperCase();return u==='KG'?1000:u==='TON'?1e6:1};
+const pcLabel=m=>{const u=String(m?.unit||'').toUpperCase();return u==='KG'||u==='TON'?'g':esc(m?.unit||'')};
+function pcGrams(p){return p.lines.reduce((s,l)=>{const m=mat(l.materialId);return s+(m&&toUnit(m)>1?perPc(l,m):0)},0)}
+function usedIn(id){return S.products.filter(p=>p.lines.some(l=>l.materialId===id))}
+
+/* ---------- calculation ---------- */
+function compute(){
+  const req=new Map();
+  for(const r of S.plan.rows){
+    const p=prod(r.productId);const q=num(r.qty);if(!p||q<=0)continue;
+    for(const l of p.lines){
+      const m=mat(l.materialId);if(!m)continue;
+      const need=q*perPc(l,m)*(1+num(l.wastage)/100)/toUnit(m);
+      const e=req.get(m.id)||{req:0,from:new Set()};e.req+=need;e.from.add(p.name);req.set(m.id,e);
+    }
+  }
+  const rows=[...req].map(([id,e])=>{
+    const m=mat(id);const stock=S.plan.deduct?num(m.opening):0;
+    const net=Math.max(0,e.req-stock);const auto=Math.ceil(net-1e-9);
+    const ov=S.plan.overrides[id];const has=ov!==undefined&&ov!==null&&ov!=='';
+    const order=has?num(ov):auto;
+    return {m,req:e.req,stock,net,auto,order,overridden:has,amount:order*num(m.rate),from:[...e.from]};
+  });
+  const groups=new Map();
+  for(const r of rows){const k=ven(r.m.vendorId)?r.m.vendorId:'';if(!groups.has(k))groups.set(k,[]);groups.get(k).push(r)}
+  const vg=[...groups].map(([k,rs])=>({vendor:ven(k)||null,rows:rs.sort((a,b)=>matLabel(a.m).localeCompare(matLabel(b.m))),
+    total:rs.reduce((s,r)=>s+r.amount,0)}))
+    .sort((a,b)=>!a.vendor?1:!b.vendor?-1:a.vendor.name.localeCompare(b.vendor.name));
+  let po=num(S.settings.nextPO)||1;
+  for(const g of vg){g.lines=g.rows.filter(r=>r.order>0);if(g.vendor&&g.lines.length)g.po=po++}
+  return {rows,vg};
+}
+
+/* ---------- PO data in Mumuksh PI layout ---------- */
+function poData(g){
+  const u=unitById(S.plan.unitId),v=g.vendor,L=g.lines;
+  const cols=[['name','Material Name']];
+  [['gsm','GSM'],['width','Width in MM'],['type','Type'],['remark','Remark']].forEach(c=>{if(L.some(r=>String(r.m[c[0]]??'').trim()))cols.push(c)});
+  const us=[...new Set(L.map(r=>r.m.unit||''))];const one=us.length===1?us[0]:null;
+  const head=['SR.NO',...cols.map(c=>c[1]),...(one?[]:['Unit']),'Order'+(one?` (${one})`:''),'Price','Amount'];
+  const body=L.map((r,i)=>[i+1,...cols.map(c=>r.m[c[0]]??''),...(one?[]:[r.m.unit]),r.order,num(r.m.rate),r.order*num(r.m.rate)]);
+  const totalQty=L.reduce((s,r)=>s+r.order,0),total=L.reduce((s,r)=>s+r.order*num(r.m.rate),0);
+  const terms=[];
+  if(v.delivery==='FOR')terms.push(`Rates are FOR ${u.short} Factory.`);
+  if(v.delivery==='EX')terms.push('Rates are EX Factory.');
+  terms.push('Rates are Exclusive of GST');
+  if(String(v.payment||'').trim())terms.push(`Payment Term: - ${v.payment} Days`);
+  return {u,v,po:String(g.po).padStart(3,'0'),date:dmy(S.plan.date),head,body,totalQty,total,terms,oneUnit:!!one};
+}
+const lines=s=>String(s||'').split('\n').filter(x=>x.trim());
+function poHTML(d){
+  const ul=[...lines(d.u.address),`GSTIN/UIN : ${d.u.gstin}`,`PAN/IT No : ${d.u.pan}`,`State Name : ${d.u.state}`];
+  const vl=[...lines(d.v.address),d.v.gstin?(d.v.gstin.startsWith('VAT')?d.v.gstin:`GSTIN: ${d.v.gstin}`):'',d.v.state?`State Name : ${d.v.state}`:''].filter(Boolean);
+  const nc=d.head.length;const qi=nc-3;
+  return `<div class="po-doc">
+  <div class="banner-t">${esc(d.u.name)}</div>
+  <div class="grid2"><div><div class="lbl">${esc(d.u.name)}</div>${ul.map(x=>`<div>${esc(x)}</div>`).join('')}</div>
+    <div style="display:flex;flex-direction:column;justify-content:center;gap:6px"><div class="potitle">PURCHASE ORDER</div>
+    <div class="kv"><span class="lbl">DATE</span><span>${esc(d.date)}</span><span class="lbl">PO Number</span><span>${esc(d.po)}</span></div></div></div>
+  <div class="grid2"><div><div class="lbl">VENDOR</div><div class="lbl">${esc(d.v.name)}</div>${vl.map(x=>`<div>${esc(x)}</div>`).join('')}</div>
+    <div><div class="lbl">DELIVERY TO</div><div class="lbl">${esc(d.u.name)}</div>${ul.map(x=>`<div>${esc(x)}</div>`).join('')}</div></div>
+  <table><thead><tr>${d.head.map((h,i)=>`<th class="${i>=qi?'n':''}">${esc(h)}</th>`).join('')}</tr></thead>
+  <tbody>${d.body.map(r=>`<tr>${r.map((c,i)=>`<td class="${i>=qi||i===0?'n':''}">${i===nc-1?fmt(c,2):i===nc-2?fmt(c,2):i===qi?fmt(c,3):esc(c)}</td>`).join('')}</tr>`).join('')}
+  <tr><td colspan="${qi}" class="lbl">Total</td><td class="n lbl">${d.oneUnit?fmt(d.totalQty,3):''}</td><td></td><td class="n lbl">${fmt(d.total,2)}</td></tr></tbody></table>
+  <div class="foot"><div><div class="lbl">TERMS OF SALE AND OTHER COMMENTS</div>${d.terms.map((t,i)=>`<div>${i+1}. ${esc(t)}</div>`).join('')}</div>
+   <div><table><tr><td class="lbl">Subtotal</td><td class="n">${fmt(d.total,2)}</td></tr><tr><td class="lbl">GST</td><td class="n">As Applicable</td></tr><tr><td class="lbl">Round Off</td><td></td></tr><tr><td class="lbl">TOTAL</td><td class="n lbl">${fmt(d.total,2)}</td></tr><tr><td class="lbl">Currency</td><td class="n">INR</td></tr></table></div></div>
+  <div class="sign">For ${esc(d.u.name)}</div></div>`;
+}
+function poGrid(d){
+  const n=Math.max(d.head.length,6);const pad=a=>{const r=a.slice();while(r.length<n)r.push('');return r};
+  const right=n-3;const at=(l,lab,val)=>{const r=pad([l]);r[right]=lab;r[right+1]=val;return r};
+  const ul=[...lines(d.u.address),`GSTIN/UIN : ${d.u.gstin}`,`PAN/IT No : ${d.u.pan}`,`State Name : ${d.u.state}`];
+  const vl=[d.v.name,...lines(d.v.address),d.v.gstin?(d.v.gstin.startsWith('VAT')?d.v.gstin:`GSTIN: ${d.v.gstin}`):'',d.v.state?`State Name : ${d.v.state}`:''].filter(Boolean);
+  const dl=[d.u.name,...ul];
+  const g=[pad([d.u.name]),pad([]),at(d.u.name,'PURCHASE ORDER',''),at(ul[0]||'','DATE',d.date),at(ul[1]||'','PO Number',d.po)];
+  ul.slice(2).forEach(x=>g.push(pad([x])));
+  g.push(pad([]));g.push(at('VENDOR','DELIVERY TO',''));
+  for(let i=0;i<Math.max(vl.length,dl.length);i++){const r=pad([vl[i]||'']);r[right]=dl[i]||'';g.push(r)}
+  g.push(pad([]));g.push(pad(d.head));d.body.forEach(b=>g.push(pad(b)));
+  const t=pad(['Total']);t[d.head.length-3]=d.oneUnit?d.totalQty:'';t[d.head.length-1]=d.total;g.push(t);
+  g.push(pad([]));
+  const sum=[['Subtotal',d.total],['GST','As Applicable'],['Round Off',''],['TOTAL',d.total],['Currency','INR']];
+  const left=['TERMS OF SALE AND OTHER COMMENTS',...d.terms.map((x,i)=>`${i+1}. ${x}`)];
+  for(let i=0;i<Math.max(left.length,sum.length);i++)g.push(sum[i]?at(left[i]||'',sum[i][0],sum[i][1]):pad([left[i]||'']));
+  return g;
+}
+async function copyPO(g){
+  const d=poData(g);const grid=poGrid(d);
+  const tsv=grid.map(r=>r.map(c=>String(c).replace(/[\t\n]/g,' ')).join('\t')).join('\n');
+  const html='<table border="1" style="border-collapse:collapse;font-family:Calibri">'+grid.map(r=>'<tr>'+r.map(c=>`<td>${esc(c)}</td>`).join('')+'</tr>').join('')+'</table>';
+  try{
+    if(window.ClipboardItem&&navigator.clipboard.write){await navigator.clipboard.write([new ClipboardItem({'text/plain':new Blob([tsv],{type:'text/plain'}),'text/html':new Blob([html],{type:'text/html'})})])}
+    else await navigator.clipboard.writeText(tsv);
+    toast(`PO ${d.po} copied. Paste it into a new sheet in your PI workbook.`);
+  }catch(e){
+    try{await navigator.clipboard.writeText(tsv);toast(`PO ${d.po} copied.`)}catch(e2){toast('Copy was blocked here. Open the PO and select it to copy by hand.')}
+  }
+}
+
+/* ---------- views ---------- */
+const TABS=[['plan','Plan order'],['bom','Products & BOM'],['materials','Materials & stock'],['vendors','Vendors'],['setup','Setup & backup']];
+const curTab=()=>{const h=location.hash.slice(1);return TABS.some(t=>t[0]===h)?h:'plan'};
+function exampleBanner(){
+  if(!S.example)return'';
+  return `<div class="banner"><p><b>Starting data loaded.</b> The Baby Pant BOM is from your BOM sheet, and vendors, specs and rates are from your past POs. Opening stock is 0 everywhere — enter your stock, and set vendors and rates for PE Film, glue, elastic and pulp.</p>
+  <div class="actions"><button class="btn ghost sm" data-act="ex-dismiss">Got it, hide this</button></div></div>`;
+}
+const opt=(v,l,sel)=>`<option value="${esc(v)}"${sel?' selected':''}>${esc(l)}</option>`;
+function vendorOptions(sel){return opt('','— No vendor —',!sel)+S.vendors.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(v=>opt(v.id,v.name,v.id===sel)).join('')}
+function unitOptions(sel){const a=UNITS_LIST.includes(sel)||!sel?UNITS_LIST:[...UNITS_LIST,sel];return a.map(u=>opt(u,u,u===(sel||'KG'))).join('')}
+
+function viewPlan(){
+  const rows=S.plan.rows.map((r,i)=>{const p=prod(r.productId);return `<tr>
+    <td style="min-width:220px"><select id="pp${i}" data-act="plan-prod" data-i="${i}" aria-label="Product">${S.products.map(x=>opt(x.id,x.name,x.id===r.productId)).join('')}</select></td>
+    <td style="width:180px"><input id="pq${i}" type="number" min="0" step="any" class="num" data-act="plan-qty" data-i="${i}" value="${esc(r.qty)}" aria-label="Monthly production"></td>
+    <td class="muted">${p?esc(p.unit||'pcs'):''}</td>
+    <td class="muted">${p?`${p.lines.length} materials · ${fmt(pcGrams(p),4)} g per ${esc(p.unit==='pcs'?'pc':p.unit||'pc')}`:''}</td>
+    <td style="width:40px"><button class="icon-btn" data-act="plan-del" data-i="${i}" aria-label="Remove row">✕</button></td></tr>`}).join('');
+  const noProd=!S.products.length;
+  return `${exampleBanner()}
+  <section class="panel">
+    <div class="panel-head"><h2>Monthly production plan</h2><p>Choose the products and how many you plan to make this month. If two products use the same material, their requirements are added together.</p></div>
+    <div class="row">
+      <label class="f">PO date<input id="pl-date" type="date" data-act="plan-date" value="${esc(S.plan.date)}"></label>
+      <label class="f">Deliver to<select id="pl-unit" data-act="plan-unit">${S.units.map(u=>opt(u.id,`${u.short} factory (${u.state.split(',')[0]})`,u.id===S.plan.unitId)).join('')}</select></label>
+      <label class="check"><input id="pl-deduct" type="checkbox" data-act="plan-deduct" ${S.plan.deduct?'checked':''}> Subtract opening stock</label>
+    </div>
+    ${noProd?`<p class="empty">No products yet. Add one in <a href="#bom">Products &amp; BOM</a> first.</p>`:
+    `<div class="tbl-wrap"><table class="grid"><thead><tr><th>Product</th><th class="r">Monthly production</th><th>Unit</th><th>BOM</th><th></th></tr></thead>
+    <tbody>${rows||`<tr><td colspan="5" class="empty">Add a product to start.</td></tr>`}</tbody></table></div>
+    <div><button class="btn ghost" data-act="plan-add">+ Add product</button></div>`}
+  </section>
+  <div id="results" style="display:flex;flex-direction:column;gap:18px">${viewResults()}</div>`;
+}
+function viewResults(){
+  const {rows,vg}=compute();
+  if(!rows.length)return `<section class="panel"><p class="empty">Enter a monthly production quantity above to see what to order.</p></section>`;
+  const pos=vg.filter(g=>g.po);const total=vg.reduce((s,g)=>s+g.lines.reduce((a,r)=>a+r.amount,0),0);
+  const covered=rows.filter(r=>r.order<=0).length;const noRate=rows.filter(r=>r.order>0&&!num(r.m.rate)).length;
+  const noVen=vg.find(g=>!g.vendor&&g.lines.length);
+  const range=pos.length?(pos.length>1?`PO ${pos[0].po} to ${pos[pos.length-1].po}`:`PO ${pos[0].po}`):'None needed';
+  const body=vg.map(g=>`<tr class="group"><td colspan="9">${g.vendor?esc(g.vendor.name):'No vendor set'} <span class="muted">· ${g.rows.length} material${g.rows.length>1?'s':''}${g.po?` · PO ${g.po}`:''}</span></td></tr>`+
+    g.rows.map(r=>{
+      const st=r.order<=0?`<span class="chip ok">Covered by stock</span>`:r.overridden?`<span class="chip info">Edited</span>`:r.stock>0?`<span class="chip warn">Part in stock</span>`:'';
+      return `<tr><td><div class="matname">${esc(r.m.name)}</div><div class="spec">${esc(specOf(r.m))}</div></td>
+      <td class="spec">${esc(r.from.join(', '))}</td><td>${esc(r.m.unit)}</td>
+      <td class="r mono">${fmt(r.req,2)}</td><td class="r mono">${S.plan.deduct?fmt(r.stock,2):'—'}</td>
+      <td style="width:130px"><input id="ov-${r.m.id}" type="number" min="0" step="any" class="num" data-act="ov" data-id="${r.m.id}" value="${r.overridden?esc(S.plan.overrides[r.m.id]):''}" placeholder="${r.auto}" aria-label="Quantity to order"></td>
+      <td class="r mono">${num(r.m.rate)?fmt(r.m.rate,2):'<span class="chip bad">No rate</span>'}</td>
+      <td class="r mono">${r.amount?fmt(r.amount,2):'—'}</td><td>${st}</td></tr>`}).join('')).join('');
+  const cards=vg.filter(g=>g.lines.length).map(g=>{
+    if(!g.vendor)return `<article class="po-card nov"><header><div><h3>${g.lines.length} material${g.lines.length>1?'s have':' has'} no vendor</h3><span class="muted">${esc(g.lines.map(r=>r.m.name).join(', '))}</span></div><a class="btn ghost sm" href="#materials">Set vendor</a></header></article>`;
+    const open=ui.open.has(g.vendor.id);
+    return `<article class="po-card"><header><div><div class="po-no">PO ${esc(String(g.po).padStart(3,'0'))}</div><h3>${esc(g.vendor.name)}</h3>
+      <span class="muted">${g.lines.length} item${g.lines.length>1?'s':''} · ${money(g.lines.reduce((a,r)=>a+r.amount,0))} + GST</span></div>
+      <div class="actions"><button class="btn ghost sm" data-act="po-toggle" data-v="${g.vendor.id}">${open?'Hide PO':'Show PO'}</button>
+      <button class="btn sm" data-act="po-copy" data-v="${g.vendor.id}">Copy for Excel</button>
+      ${canPrint?`<button class="btn ghost sm" data-act="po-print" data-v="${g.vendor.id}">Print / PDF</button>`:''}</div></header>
+      <div class="po-doc-wrap" id="pod-${g.vendor.id}" ${open?'':'hidden'}>${open?poHTML(poData(g)):''}</div></article>`}).join('');
+  return `<div class="stats">
+    <div class="stat"><span>Materials needed</span><b>${rows.length}</b><small>${covered} fully covered by stock</small></div>
+    <div class="stat"><span>Purchase orders</span><b>${pos.length}</b><small>${range}</small></div>
+    <div class="stat"><span>Order value</span><b>${money(total).replace(/\.\d+$/,'')}</b><small>Before GST</small></div>
+    <div class="stat"><span>Needs attention</span><b>${noRate+(noVen?noVen.lines.length:0)}</b><small>${noRate} without rate${noVen?`, ${noVen.lines.length} without vendor`:''}</small></div></div>
+  <section class="panel"><div class="panel-head"><h2>Material requirement</h2>
+    <p>Required (kg) = production × grams per piece × (1 + wastage) ÷ 1000. To order = required − opening stock, rounded up. Type in the To order box to change a quantity, for example to match a full roll or pallet.</p></div>
+    <div class="tbl-wrap"><table class="grid"><thead><tr><th>Material</th><th>Used in</th><th>Unit</th><th class="r">Required</th><th class="r">Opening stock</th><th class="r">To order</th><th class="r">Rate ₹</th><th class="r">Amount ₹</th><th></th></tr></thead><tbody>${body}</tbody></table></div>
+    ${Object.keys(S.plan.overrides).length?`<div><button class="btn ghost sm" data-act="ov-clear">Reset edited quantities</button></div>`:''}
+  </section>
+  <section class="panel"><div class="spread"><div class="panel-head"><h2>Purchase orders</h2><p>One PO per vendor, in your PI format. Use Copy for Excel and paste into a new sheet of your PI workbook.</p></div>
+    ${pos.length?`<button class="btn" data-act="save-order">Save order &amp; use ${esc(range)}</button>`:''}</div>
+    ${ui.saved?`<p class="note">${esc(ui.saved)}</p>`:''}
+    ${cards||'<p class="empty">Everything is covered by opening stock. Nothing to order.</p>'}
+  </section>`;
+}
+
+function viewBOM(){
+  if(!ui.sel||!prod(ui.sel))ui.sel=S.products[0]?.id||null;
+  const list=S.products.map(p=>`<button data-act="sel-prod" data-id="${p.id}" aria-pressed="${p.id===ui.sel}"><b>${esc(p.name)}</b><small>${p.lines.length} materials · ${fmt(pcGrams(p),4)} g per pc</small></button>`).join('');
+  const p=prod(ui.sel);
+  let ed='<section class="panel"><p class="empty">Create your first product to enter its BOM.</p></section>';
+  if(p){
+    const lineRows=p.lines.map((l,i)=>{const m=mat(l.materialId);const sh=isSheet(m)&&num(l.length)>0;const w=perPc(l,m);
+      return `<tr>
+      <td style="min-width:190px"><select id="lm-${p.id}-${i}" data-act="line-mat" data-i="${i}" aria-label="Material">${S.materials.slice().sort((a,b)=>matLabel(a).localeCompare(matLabel(b))).map(x=>opt(x.id,matLabel(x),x.id===l.materialId)).join('')}</select></td>
+      <td style="width:70px"><input id="lg-${p.id}-${i}" class="num" data-act="line-mf" data-k="gsm" data-id="${m?m.id:''}" value="${esc(m?.gsm??'')}" aria-label="GSM"></td>
+      <td style="width:90px"><input id="lwm-${p.id}-${i}" type="number" step="any" min="0" class="num" data-act="line-mf" data-k="widthm" data-id="${m?m.id:''}" value="${m&&m.width!==''&&m.width!=null?+(num(m.width)/1000).toFixed(4):''}" aria-label="Width in metres"></td>
+      <td style="width:90px"><input id="ll-${p.id}-${i}" type="number" step="any" min="0" class="num" data-act="line-f" data-k="length" data-i="${i}" value="${esc(l.length??'')}" aria-label="Length in metres" ${isSheet(m)?'':'placeholder="—"'}></td>
+      <td style="width:110px">${sh?`<div class="mono" style="text-align:right;padding-right:10px" title="GSM × width × length">${fmt(w,4)}</div>`:`<input id="lwt-${p.id}-${i}" type="number" step="any" min="0" class="num" data-act="line-f" data-k="weight" data-i="${i}" value="${esc(l.weight??'')}" aria-label="Weight per piece">`}</td>
+      <td>${pcLabel(m)}</td>
+      <td style="width:80px"><input id="lw-${p.id}-${i}" type="number" step="any" min="0" class="num" data-act="line-f" data-k="wastage" data-i="${i}" value="${esc(l.wastage)}" aria-label="Wastage percent"></td>
+      <td style="width:120px"><input id="lo-${p.id}-${i}" type="number" step="any" class="num" data-act="line-mf" data-k="opening" data-id="${m?m.id:''}" value="${esc(m?.opening??'')}" aria-label="Opening stock"></td>
+      <td style="width:110px"><input id="lr-${p.id}-${i}" type="number" step="any" min="0" class="num" data-act="line-mf" data-k="rate" data-id="${m?m.id:''}" value="${esc(m?.rate??'')}" aria-label="Rate"></td>
+      <td style="min-width:190px"><select id="lv-${p.id}-${i}" data-act="line-mf" data-k="vendorId" data-id="${m?m.id:''}" aria-label="Vendor">${vendorOptions(m?.vendorId)}</select></td>
+      <td style="width:40px"><button class="icon-btn" data-act="line-del" data-i="${i}" aria-label="Remove line">✕</button></td></tr>`}).join('');
+    ed=`<section class="panel">
+      <div class="spread"><h2>${esc(p.name)}</h2><div class="actions"><button class="btn ghost sm" data-act="prod-dup">Duplicate</button><button class="btn danger sm ${ui.armed==='prod-'+p.id?'armed':''}" data-act="prod-del">${ui.armed==='prod-'+p.id?'Click again to delete':'Delete product'}</button></div></div>
+      <div class="row">
+        <label class="f grow">Product name<input id="p-name-${p.id}" data-act="prod-f" data-k="name" value="${esc(p.name)}"></label>
+        <label class="f">Counted in<input id="p-unit-${p.id}" data-act="prod-f" data-k="unit" value="${esc(p.unit)}" list="unitlist" style="width:110px"></label>
+      </div>
+      <p class="muted">BOM is for 1 ${esc(p.unit==='pcs'?'piece':p.unit||'piece')}, in grams, same as your BOM sheet. For sheet materials enter the length and the weight is worked out as GSM × width × length. For SAP, pulp, glue and elastic type the grams directly. GSM, width, vendor, rate and opening stock belong to the material, so changing them updates every product that uses it.</p>
+      <div class="tbl-wrap"><table class="grid"><thead><tr><th>Material</th><th class="r">GSM</th><th class="r">Width (m)</th><th class="r">Length (m)</th><th class="r">Weight</th><th></th><th class="r">Wastage %</th><th class="r">Opening stock</th><th class="r">Rate ₹</th><th>Vendor</th><th></th></tr></thead>
+      <tbody>${lineRows||`<tr><td colspan="11" class="empty">No materials in this BOM yet.</td></tr>`}
+      ${p.lines.length?`<tr class="tot"><td colspan="4">Total weight per piece</td><td class="r mono">${fmt(pcGrams(p),4)}</td><td>g</td><td colspan="5"></td></tr>`:''}</tbody></table></div>
+      <div class="actions">${S.materials.length?`<button class="btn ghost" data-act="line-add">+ Add existing material</button>`:''}<button class="btn ghost" data-act="newmat-open">+ New material</button><button class="btn ghost" data-act="paste-open">Paste BOM from Excel</button></div>
+      ${ui.newMat?matForm('bm',true):''}${ui.paste?pastePanel():''}
+    </section>`;
+  }
+  return `${exampleBanner()}<div class="bom-layout">
+    <section class="panel"><h3>Products</h3><div class="plist">${list||'<p class="muted">None yet.</p>'}</div><button class="btn" data-act="prod-add">+ New product</button></section>
+    ${ed}</div><datalist id="unitlist"><option value="pcs"><option value="packets"><option value="pads"></datalist>`;
+}
+function matForm(px,bom){
+  return `<div class="newmat"><h3>New material</h3>
+   <div class="row">
+    <label class="f grow">Material name<input id="${px}-name" placeholder="e.g. Back Sheet Nonwoven"></label>
+    <label class="f">GSM<input id="${px}-gsm" style="width:80px"></label>
+    <label class="f">Width (mm)<input id="${px}-width" style="width:100px"></label>
+    <label class="f">Type<input id="${px}-type" placeholder="HI / HO" style="width:90px"></label>
+    <label class="f grow">Remark / grade<input id="${px}-remark" placeholder="SSS, SMMSS, colour, size…"></label>
+   </div><div class="row">
+    <label class="f">Unit<select id="${px}-unit">${unitOptions('KG')}</select></label>
+    <label class="f grow">Vendor<select id="${px}-vendor">${vendorOptions('')}</select></label>
+    <label class="f">Rate ₹<input id="${px}-rate" type="number" step="any" min="0" style="width:110px"></label>
+    <label class="f">Opening stock<input id="${px}-opening" type="number" step="any" style="width:120px"></label>
+    ${bom?`<label class="f">Length (m)<input id="${px}-length" type="number" step="any" min="0" style="width:100px"></label>
+    <label class="f">or Weight (g/pc)<input id="${px}-weight" type="number" step="any" min="0" style="width:120px"></label>
+    <label class="f">Wastage %<input id="${px}-wastage" type="number" step="any" min="0" value="0" style="width:90px"></label>`:''}
+   </div>
+   <p class="muted" id="${px}-err" hidden></p>
+   <div class="actions"><button class="btn" data-act="newmat-save" data-px="${px}">${bom?'Add to BOM':'Add material'}</button><button class="btn ghost" data-act="newmat-cancel">Cancel</button></div></div>`;
+}
+function pastePanel(){
+  return `<div class="newmat"><h3>Paste BOM from Excel</h3>
+  <p class="muted">In your BOM sheet, select the rows from Sr. No. to the last material (Material Name, GSM, Width, Length, Weight) and paste here. Rows with only a weight, like SAP or Pulp, are read as grams per piece. Materials are matched by name, GSM and width; anything new is added to Materials.</p>
+  <textarea id="bm-paste" rows="7" placeholder="1&#9;Lower Tissue&#9;&#9;9&#9;0.165&#9;0.32&#9;0.4752"></textarea>
+  <label class="check"><input id="bm-replace" type="checkbox" checked> Replace this product's current BOM</label>
+  <div class="actions"><button class="btn" data-act="paste-read">Read BOM</button><button class="btn ghost" data-act="paste-cancel">Cancel</button></div></div>`;
+}
+function parseBOM(text){
+  const out=[];const isN=c=>c!==''&&/^-?\d*\.?\d+$/.test(c.replace(/,/g,''));
+  for(const raw of String(text).split(/\r?\n/)){
+    const cells=raw.split('\t').map(c=>c.trim());
+    const ni=cells.findIndex(c=>c&&!isN(c));if(ni<0)continue;
+    const name=cells[ni].replace(/\s+/g,' ');
+    if(/^(sr\.?\s*no\.?|material name|total)$/i.test(name))continue;
+    const nums=cells.slice(ni+1).filter(isN).map(c=>parseFloat(c.replace(/,/g,'')));
+    if(!nums.length)continue;
+    if(nums.length>=3){const[g,w,l]=nums;const wmm=w<5?w*1000:w;const lm=l>5?l/1000:l;out.push({name,gsm:g,width:+wmm.toFixed(2),length:lm,weight:nums[3]})}
+    else out.push({name,weight:nums[nums.length-1]});
+  }
+  return out;
+}
+const norm=s=>String(s||'').toLowerCase().replace(/[.\-–()]/g,' ').replace(/\s+/g,' ').trim();
+function matchMat(r){
+  if(r.gsm){return S.materials.find(m=>norm(m.name)===norm(r.name)&&num(m.gsm)===r.gsm&&num(m.width)===r.width)}
+  return S.materials.find(m=>!isSheet(m)&&norm(m.name)===norm(r.name))||S.materials.find(m=>!isSheet(m)&&norm(m.name).split(' ').includes(norm(r.name).split(' ')[0])&&norm(m.name).includes(norm(r.name)));
+}
+function viewMaterials(){
+  const rows=S.materials.slice().sort((a,b)=>matLabel(a).localeCompare(matLabel(b))).map(m=>{const u=usedIn(m.id);const k=(f,w,t='text')=>`<input id="m-${f}-${m.id}" ${t==='number'?'type="number" step="any" class="num"':''} data-act="mat-f" data-id="${m.id}" data-k="${f}" value="${esc(m[f]??'')}" style="width:${w}px" aria-label="${f}">`;
+    return `<tr><td>${k('name',210)}</td><td>${k('gsm',60)}</td><td>${k('width',70)}</td><td>${k('type',60)}</td><td>${k('remark',140)}</td>
+    <td><select id="m-unit-${m.id}" data-act="mat-f" data-id="${m.id}" data-k="unit" aria-label="unit">${unitOptions(m.unit)}</select></td>
+    <td style="min-width:200px"><select id="m-vendorId-${m.id}" data-act="mat-f" data-id="${m.id}" data-k="vendorId" aria-label="vendor">${vendorOptions(m.vendorId)}</select></td>
+    <td>${k('rate',90,'number')}</td><td>${k('opening',100,'number')}</td>
+    <td class="spec">${u.length?esc(u.map(p=>p.name).join(', ')):'Not used'}</td>
+    <td>${u.length?'':`<button class="icon-btn ${ui.armed==='mat-'+m.id?'armed':''}" data-act="mat-del" data-id="${m.id}" aria-label="Delete material">${ui.armed==='mat-'+m.id?'Delete?':'✕'}</button>`}</td></tr>`}).join('');
+  const val=S.materials.reduce((s,m)=>s+num(m.opening)*num(m.rate),0);
+  return `<section class="panel"><div class="spread"><div class="panel-head"><h2>Materials &amp; opening stock</h2><p>Every raw material with its spec, vendor, current rate and stock in hand. The Plan order tab subtracts this opening stock.</p></div>
+    <div class="row"><label class="f">Stock as on<input id="stockdate" type="date" data-act="set-f" data-k="stockDate" value="${esc(S.settings.stockDate)}"></label><button class="btn" data-act="newmat-open-tab">+ New material</button></div></div>
+    ${ui.newMatTab?matForm('mt',false):''}
+    <div class="tbl-wrap"><table class="grid"><thead><tr><th>Material</th><th>GSM</th><th>Width mm</th><th>Type</th><th>Remark</th><th>Unit</th><th>Vendor</th><th class="r">Rate ₹</th><th class="r">Opening stock</th><th>Used in</th><th></th></tr></thead>
+    <tbody>${rows||'<tr><td colspan="11" class="empty">No materials yet.</td></tr>'}</tbody></table></div>
+    <p class="muted">Stock value at current rates: <b class="mono">${money(val)}</b>. A material can be deleted once no product uses it.</p></section>`;
+}
+function viewVendors(){
+  const cards=S.vendors.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(v=>{const n=S.materials.filter(m=>m.vendorId===v.id).length;const f=(k,l,extra='')=>`<label class="f">${l}<input id="v-${k}-${v.id}" data-act="ven-f" data-id="${v.id}" data-k="${k}" value="${esc(v[k]??'')}" ${extra}></label>`;
+    return `<div class="vcard">${f('name','Vendor name')}
+    <label class="f">Address<textarea id="v-address-${v.id}" rows="3" data-act="ven-f" data-id="${v.id}" data-k="address">${esc(v.address)}</textarea></label>
+    <div class="row">${f('gstin','GSTIN')}${f('state','State name & code')}</div>
+    <div class="row"><label class="f">Rate basis<select id="v-delivery-${v.id}" data-act="ven-f" data-id="${v.id}" data-k="delivery">${opt('','Not stated',!v.delivery)}${opt('FOR','FOR our factory',v.delivery==='FOR')}${opt('EX','EX Factory',v.delivery==='EX')}</select></label>
+    ${f('payment','Payment days','type="number" min="0" style="width:110px"')}</div>
+    <div class="spread"><span class="spec">${n} material${n===1?'':'s'}</span>${n?'':`<button class="btn danger sm ${ui.armed==='ven-'+v.id?'armed':''}" data-act="ven-del" data-id="${v.id}">${ui.armed==='ven-'+v.id?'Click again to delete':'Delete'}</button>`}</div></div>`}).join('');
+  return `<section class="panel"><div class="spread"><div class="panel-head"><h2>Vendors</h2><p>These details print on the PO. Rate basis and payment days become the PO terms.</p></div><button class="btn" data-act="ven-add">+ New vendor</button></div>
+  <div class="vgrid">${cards}</div></section>`;
+}
+function viewSetup(){
+  const units=S.units.map(u=>{const f=(k,l,w)=>`<label class="f ${w?'':'grow'}">${l}<input id="u-${k}-${u.id}" data-act="unit-f" data-id="${u.id}" data-k="${k}" value="${esc(u[k])}" ${w?`style="width:${w}px"`:''}></label>`;
+    return `<div class="vcard"><div class="row">${f('short','Short name',120)}${f('name','Company name')}</div>
+    <label class="f">Address<textarea id="u-address-${u.id}" rows="2" data-act="unit-f" data-id="${u.id}" data-k="address">${esc(u.address)}</textarea></label>
+    <div class="row">${f('gstin','GSTIN')}${f('pan','PAN',140)}</div>${f('state','State name & code')}</div>`}).join('');
+  const hist=S.history.slice().reverse().map(h=>`<li><b>${esc(dmy(h.date))}</b> · ${esc(h.pos.map(p=>'PO '+p.po).join(', '))} · ${money(h.total)}${h.by?` · by ${esc(h.by)}`:''} <span class="spec">· ${esc(h.plan.map(r=>`${r.product}: ${fmt(r.qty,0)}`).join('; '))}</span></li>`).join('');
+  const meU=me();
+  const users=isAdmin()?S.users.map(u=>`<div><span><b>${esc(u.username)}</b> <span class="chip ${u.role==='admin'?'info':'ok'}">${u.role==='admin'?'Admin':'Staff'}</span>${u.id===ME?' <span class="spec">(you)</span>':''}</span>
+      <span class="actions"><input id="up-${u.id}" class="mono" type="password" inputmode="numeric" maxlength="6" placeholder="New PIN" style="width:110px" aria-label="New PIN for ${esc(u.username)}"><button class="btn ghost sm" data-act="user-pin" data-id="${u.id}">Set PIN</button>
+      <button class="btn ghost sm" data-act="user-role" data-id="${u.id}">Make ${u.role==='admin'?'staff':'admin'}</button>
+      ${u.id===ME?'':`<button class="btn danger sm ${ui.armed==='user-'+u.id?'armed':''}" data-act="user-del" data-id="${u.id}">${ui.armed==='user-'+u.id?'Click again to remove':'Remove'}</button>`}</span></div>`).join(''):'';
+  const usersPanel=isAdmin()?`<section class="panel"><div class="panel-head"><h2>Users</h2><p>Admins can do everything, including managing users and restoring backups. Staff can enter BOMs and make orders. Users are saved with the backup, so restoring on another computer brings the same logins.</p></div>
+    <div class="ulist">${users}</div>
+    <div class="row"><label class="f">New username<input id="nu-name" autocapitalize="none" maxlength="20" style="width:160px"></label>
+    <label class="f">PIN (4–6 digits)<input id="nu-pin" class="mono" type="password" inputmode="numeric" maxlength="6" style="width:130px"></label>
+    <label class="f">Role<select id="nu-role"><option value="staff">Staff</option><option value="admin">Admin</option></select></label>
+    <button class="btn" data-act="user-add">Add user</button></div>
+    <p class="muted" style="font-size:12px">This login keeps casual users out on a shared computer. Your data is stored in this browser, so it is not a substitute for locking the computer itself.</p></section>`
+   :`<section class="panel"><div class="panel-head"><h2>My PIN</h2></div><div class="row"><label class="f">New PIN<input id="up-${meU.id}" class="mono" type="password" inputmode="numeric" maxlength="6" style="width:130px"></label><button class="btn ghost" data-act="user-pin" data-id="${meU.id}">Change my PIN</button></div></section>`;
+  return `${usersPanel}<section class="panel"><div class="panel-head"><h2>PO numbering</h2><p>Your last PO in the Excel workbook was 122, so the next one is 123. Saving an order moves this number forward.</p></div>
+    <div class="row"><label class="f">Next PO number<input id="nextpo" type="number" min="1" data-act="set-f" data-k="nextPO" value="${esc(S.settings.nextPO)}" style="width:140px"></label></div></section>
+  <section class="panel"><div class="panel-head"><h2>Our factories</h2><p>Used for the buyer and Delivery To blocks on the PO.</p></div><div class="vgrid">${units}</div></section>
+  <section class="panel"><div class="panel-head"><h2>Backup &amp; restore</h2><p>Data is saved in this browser only. Copy a backup regularly, and use Restore to move your BOMs to another computer.</p></div>
+    <div class="actions"><button class="btn" data-act="bk-copy">Copy backup</button>${canPrint?'<button class="btn ghost" data-act="bk-dl">Download backup file</button>':''}</div>
+    <label class="f">Restore from backup (paste backup text or choose a file)<textarea id="bk-in" rows="4" placeholder='{"vendors":[…],"materials":[…],"products":[…]}'></textarea></label>
+    <div class="row" ${isAdmin()?'':'hidden'}><input id="bk-file" type="file" accept=".json,application/json" data-act="bk-file"><button class="btn ghost" data-act="bk-restore">Restore</button>
+    <button class="btn danger ${ui.armed==='reset'?'armed':''}" data-act="reset">${ui.armed==='reset'?'Click again to erase everything':'Reset to example data'}</button></div></section>
+  <section class="panel"><div class="panel-head"><h2>Saved orders</h2></div>${hist?`<ul class="hist">${hist}</ul>`:'<p class="muted">No orders saved yet.</p>'}</section>`;
+}
+const VIEWS={plan:viewPlan,bom:viewBOM,materials:viewMaterials,vendors:viewVendors,setup:viewSetup};
+function viewGate(){
+  const first=!S.users.length;
+  return `<div class="gate"><form id="gate-form" autocomplete="off">
+    <div><h2>${first?'Create the admin login':'Log in'}</h2><p class="muted">${first?'This is the first time the app is opened in this browser. Choose a username and a 4 to 6 digit PIN for the admin. The admin can add other users later.':'Enter your username and PIN.'}</p></div>
+    <label class="f">Username<input id="g-user" autocapitalize="none" spellcheck="false" maxlength="20" required></label>
+    <label class="f">PIN<input id="g-pin" class="pin" type="password" inputmode="numeric" maxlength="6" required></label>
+    ${first?'<label class="f">Repeat PIN<input id="g-pin2" class="pin" type="password" inputmode="numeric" maxlength="6" required></label>':''}
+    <p class="err" id="g-err" ${auth.err?'':'hidden'}>${esc(auth.err)}</p>
+    <button class="btn" type="submit">${first?'Create admin & open app':'Log in'}</button>
+    ${first?'':'<p class="muted" style="font-size:12px">Forgot your PIN? Ask the admin to reset it in Setup &amp; backup.</p>'}
+  </form></div>`;
+}
+function render(){
+  if(!me()){$('#tabs').innerHTML='';$('#who').innerHTML='';$('#view').innerHTML=viewGate();setTimeout(()=>$('#g-user')?.focus(),0);return}
+  $('#who').innerHTML=`<span><span class="lab">Logged in as </span><b>${esc(me().username)}</b>${isAdmin()?' (admin)':''}</span><button class="btn ghost sm" data-act="logout">Log out</button>`;
+  const t=curTab();
+  $('#tabs').innerHTML=TABS.map(([k,l])=>`<a href="#${k}" ${k===t?'aria-current="page"':''}>${l}</a>`).join('');
+  $('#view').innerHTML=VIEWS[t]();
+}
+function renderResults(){const r=$('#results');if(r)r.innerHTML=viewResults()}
+let tt;function toast(m){const e=$('#toast');e.textContent=m;e.hidden=false;clearTimeout(tt);tt=setTimeout(()=>e.hidden=true,3200)}
+function arm(key){if(ui.armed===key)return true;ui.armed=key;render();setTimeout(()=>{if(ui.armed===key){ui.armed=null;render()}},3500);return false}
+function backupText(){return JSON.stringify(S,null,1)}
+function findGroup(vid){return compute().vg.find(g=>g.vendor&&g.vendor.id===vid)}
+
+/* ---------- events ---------- */
+document.addEventListener('input',e=>{
+  const el=e.target,a=el.dataset.act;if(!a)return;
+  if(a==='plan-qty'){S.plan.rows[+el.dataset.i].qty=el.value;ui.saved=null;save();renderResults()}
+});
+document.addEventListener('change',e=>{
+  const el=e.target,a=el.dataset.act;if(!a)return;const d=el.dataset;const p=prod(ui.sel);
+  switch(a){
+    case 'plan-prod':S.plan.rows[+d.i].productId=el.value;break;
+    case 'plan-date':S.plan.date=el.value||today();break;
+    case 'plan-unit':S.plan.unitId=el.value;break;
+    case 'plan-deduct':S.plan.deduct=el.checked;break;
+    case 'plan-qty':save();return;
+    case 'ov':{if(el.value==='')delete S.plan.overrides[d.id];else S.plan.overrides[d.id]=el.value;save();renderResults();return}
+    case 'prod-f':p[d.k]=el.value;break;
+    case 'line-mat':p.lines[+d.i].materialId=el.value;break;
+    case 'line-f':p.lines[+d.i][d.k]=el.value===''?'':num(el.value);break;
+    case 'line-mf':{const m=mat(d.id);if(!m)break;if(d.k==='widthm')m.width=el.value===''?'':String(+(num(el.value)*1000).toFixed(2));else if(d.k==='vendorId'||d.k==='gsm')m[d.k]=el.value.trim();else m[d.k]=num(el.value);break}
+    case 'mat-f':{const m=mat(d.id);if(m)m[d.k]=(d.k==='rate'||d.k==='opening')?num(el.value):el.value;save();if(d.k==='name')return;return}
+    case 'ven-f':{const v=ven(d.id);if(v)v[d.k]=el.value;save();return}
+    case 'unit-f':{const u=S.units.find(x=>x.id===d.id);if(u)u[d.k]=el.value;save();return}
+    case 'set-f':S.settings[d.k]=d.k==='nextPO'?(parseInt(el.value)||1):el.value;save();return;
+    case 'bk-file':{const f=el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$('#bk-in').value=r.result;toast('File loaded. Press Restore to use it.')};r.readAsText(f);return}
+    default:return;
+  }
+  ui.saved=null;save();render();
+});
+document.addEventListener('click',async e=>{
+  const el=e.target.closest('[data-act]');if(!el||el.tagName==='INPUT'||el.tagName==='SELECT'||el.tagName==='TEXTAREA')return;
+  const a=el.dataset.act,d=el.dataset;const p=prod(ui.sel);
+  switch(a){
+    case 'ex-dismiss':S.example=false;break;
+    case 'logout':setMe(null);ui.armed=null;render();return;
+    case 'user-add':{if(!isAdmin())return;const n=$('#nu-name').value.trim().toLowerCase(),pin=$('#nu-pin').value.trim(),role=$('#nu-role').value;
+      if(!USER_RE.test(n)){toast('Username must be 2–20 letters or numbers.');return}
+      if(S.users.some(u=>u.username===n)){toast('That username is already taken.');return}
+      if(!PIN_RE.test(pin)){toast('PIN must be 4 to 6 digits.');return}
+      S.users.push(makeUser(n,pin,role));toast(`User ${n} added`);break}
+    case 'user-pin':{const u=S.users.find(x=>x.id===d.id);if(!u||(!isAdmin()&&u.id!==ME))return;const pin=$('#up-'+u.id).value.trim();
+      if(!PIN_RE.test(pin)){toast('PIN must be 4 to 6 digits.');return}
+      u.salt=uid()+uid();u.hash=pinHash(u.salt,pin);toast(`PIN changed for ${u.username}`);break}
+    case 'user-role':{if(!isAdmin())return;const u=S.users.find(x=>x.id===d.id);if(!u)return;
+      if(u.role==='admin'&&S.users.filter(x=>x.role==='admin').length<2){toast('Keep at least one admin.');return}
+      u.role=u.role==='admin'?'staff':'admin';break}
+    case 'user-del':{if(!isAdmin()||d.id===ME)return;if(!arm('user-'+d.id))return;S.users=S.users.filter(u=>u.id!==d.id);ui.armed=null;break}
+    case 'plan-add':S.plan.rows.push({productId:S.products[0]?.id,qty:''});break;
+    case 'plan-del':S.plan.rows.splice(+d.i,1);break;
+    case 'ov-clear':S.plan.overrides={};break;
+    case 'po-toggle':ui.open.has(d.v)?ui.open.delete(d.v):ui.open.add(d.v);renderResults();return;
+    case 'po-copy':{const g=findGroup(d.v);if(g)copyPO(g);return}
+    case 'po-print':{const g=findGroup(d.v);if(!g)return;ui.open.add(d.v);renderResults();const doc=$('#pod-'+d.v+' .po-doc');doc.classList.add('print-target');window.print();doc.classList.remove('print-target');return}
+    case 'save-order':{const {vg}=compute();const pos=vg.filter(g=>g.po);if(!pos.length)return;
+      const rec={date:S.plan.date,savedAt:new Date().toISOString(),by:me()?.username||'',unit:unitById(S.plan.unitId).short,
+        plan:S.plan.rows.filter(r=>num(r.qty)>0).map(r=>({product:prod(r.productId)?.name||'',qty:num(r.qty)})),
+        pos:pos.map(g=>({po:g.po,vendor:g.vendor.name,total:g.lines.reduce((s,r)=>s+r.amount,0),lines:g.lines.map(r=>({material:matLabel(r.m),unit:r.m.unit,qty:r.order,rate:num(r.m.rate)}))}))};
+      rec.total=rec.pos.reduce((s,x)=>s+x.total,0);S.history.push(rec);
+      const first=pos[0].po,last=pos[pos.length-1].po;S.settings.nextPO=last+1;
+      ui.saved=`Saved. PO ${first}${last>first?' to '+last:''} are now used, and the next PO will be ${last+1}. The numbers shown below have moved on, so copy your POs before changing the plan.`;
+      save();render();toast('Order saved');return}
+    case 'sel-prod':ui.sel=d.id;ui.newMat=false;ui.paste=false;break;
+    case 'prod-add':{const n={id:uid(),name:'New product',unit:'pcs',lines:[]};S.products.push(n);ui.sel=n.id;break}
+    case 'prod-dup':{const n=JSON.parse(JSON.stringify(p));n.id=uid();n.name=p.name+' (copy)';S.products.push(n);ui.sel=n.id;break}
+    case 'prod-del':if(!arm('prod-'+p.id))return;S.products=S.products.filter(x=>x.id!==p.id);S.plan.rows=S.plan.rows.filter(r=>r.productId!==p.id);ui.sel=null;ui.armed=null;break;
+    case 'line-add':{const used=new Set(p.lines.map(l=>l.materialId));const m=S.materials.find(x=>!used.has(x.id))||S.materials[0];p.lines.push({materialId:m.id,length:'',weight:'',wastage:0});break}
+    case 'line-del':p.lines.splice(+d.i,1);break;
+    case 'paste-open':ui.paste=true;ui.newMat=false;render();$('#bm-paste')?.focus();return;
+    case 'paste-cancel':ui.paste=false;break;
+    case 'paste-read':{const rows=parseBOM($('#bm-paste').value);if(!rows.length){toast('No BOM rows found. Copy the cells straight from Excel and paste again.');return}
+      let tgt=p;if(!tgt){tgt={id:uid(),name:'Pasted BOM',unit:'pcs',lines:[]};S.products.push(tgt);ui.sel=tgt.id}
+      if($('#bm-replace').checked)tgt.lines=[];let made=0;
+      for(const r of rows){let m=matchMat(r);
+        if(!m){m={id:uid(),name:r.name.replace(/\b\w+/g,w=>w.length>3?w[0].toUpperCase()+w.slice(1).toLowerCase():w),gsm:r.gsm?String(r.gsm):'',width:r.width?String(r.width):'',type:'',remark:'',unit:'KG',vendorId:'',rate:0,opening:0};S.materials.push(m);made++}
+        tgt.lines.push(r.gsm?{materialId:m.id,length:r.length,weight:'',wastage:0}:{materialId:m.id,length:'',weight:r.weight,wastage:0});}
+      ui.paste=false;save();render();toast(`${rows.length} rows read, ${made} new material${made===1?'':'s'} added. Total ${fmt(pcGrams(tgt),4)} g per piece.`);return}
+    case 'newmat-open':ui.newMat=true;ui.paste=false;render();$('#bm-name')?.focus();return;
+    case 'newmat-open-tab':ui.newMatTab=true;render();$('#mt-name')?.focus();return;
+    case 'newmat-cancel':ui.newMat=false;ui.newMatTab=false;break;
+    case 'newmat-save':{const px=d.px;const g=k=>$('#'+px+'-'+k)?.value??'';
+      if(!g('name').trim()){const er=$('#'+px+'-err');er.textContent='Give the material a name.';er.hidden=false;$('#'+px+'-name').focus();return}
+      const m={id:uid(),name:g('name').trim(),gsm:g('gsm').trim(),width:g('width').trim(),type:g('type').trim(),remark:g('remark').trim(),unit:g('unit'),vendorId:g('vendor'),rate:num(g('rate')),opening:num(g('opening'))};
+      S.materials.push(m);
+      if(px==='bm'&&p){p.lines.push({materialId:m.id,length:g('length')===''?'':num(g('length')),weight:g('weight')===''?'':num(g('weight')),wastage:num(g('wastage'))});ui.newMat=false}else ui.newMatTab=false;
+      toast(`${m.name} added`);break}
+    case 'mat-del':if(!arm('mat-'+d.id))return;S.materials=S.materials.filter(m=>m.id!==d.id);delete S.plan.overrides[d.id];ui.armed=null;break;
+    case 'ven-add':S.vendors.push({id:uid(),name:'NEW VENDOR',address:'',gstin:'',state:'',delivery:'',payment:''});break;
+    case 'ven-del':if(!arm('ven-'+d.id))return;S.vendors=S.vendors.filter(v=>v.id!==d.id);ui.armed=null;break;
+    case 'bk-copy':{const t=backupText();try{await navigator.clipboard.writeText(t);toast('Backup copied. Paste it into a note or email to keep it safe.')}catch(err){const ta=$('#bk-in');ta.value=t;ta.select();toast('Select-all and copy the backup from the box below.')}return}
+    case 'bk-dl':{const b=new Blob([backupText()],{type:'application/json'});const u=URL.createObjectURL(b);const l=document.createElement('a');l.href=u;l.download=`rm-ordering-backup-${today()}.json`;document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),1000);return}
+    case 'bk-restore':{if(!isAdmin()){toast('Only the admin can restore a backup.');return}try{const nx=migrate(JSON.parse($('#bk-in').value));if(!nx.users.length)nx.users=S.users;S=nx;save();ui.sel=null;render();toast('Backup restored')}catch(err){toast('Could not restore: '+(err.message||'the text is not a valid backup'))}return}
+    case 'reset':if(!isAdmin())return;if(!arm('reset'))return;{const keep=S.users;S=seed();S.users=keep}ui.armed=null;ui.sel=null;ui.saved=null;save();toast('Reset to example data');break;
+    default:return;
+  }
+  save();render();
+});
+document.addEventListener('submit',e=>{
+  if(e.target.id!=='gate-form')return;e.preventDefault();
+  const user=$('#g-user').value.trim().toLowerCase(),pin=$('#g-pin').value.trim();
+  const fail=m=>{auth.err=m;render();$('#g-user').value=user};
+  if(!S.users.length){
+    if(!USER_RE.test(user))return fail('Username must be 2–20 letters or numbers (dot, dash and underscore allowed).');
+    if(!PIN_RE.test(pin))return fail('PIN must be 4 to 6 digits.');
+    if(pin!==$('#g-pin2').value.trim())return fail('The two PINs do not match.');
+    const u=makeUser(user,pin,'admin');S.users.push(u);save();setMe(u.id);auth.err='';render();toast('Admin login created');return;
+  }
+  const now=Date.now();
+  if(now<auth.until)return fail(`Too many wrong tries. Try again in ${Math.ceil((auth.until-now)/1000)} seconds.`);
+  const u=S.users.find(x=>x.username===user);
+  if(!u||pinHash(u.salt,pin)!==u.hash){auth.fails++;if(auth.fails>=5){auth.until=now+60000;auth.fails=0;return fail('Too many wrong tries. Wait 1 minute and try again.')}return fail('Username or PIN is wrong.')}
+  auth.fails=0;auth.err='';setMe(u.id);render();
+});
+window.addEventListener('hashchange',()=>{ui.armed=null;render();window.scrollTo(0,0)});
+render();
+})();
+</script>
+<script>if("serviceWorker" in navigator&&location.protocol==="https:"){navigator.serviceWorker.register("sw.js").catch(function(){})}</script>
+</body>
+</html>
